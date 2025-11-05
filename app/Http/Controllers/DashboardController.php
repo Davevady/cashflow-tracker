@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\{Transaction, User, Category, Wallet, Member};
+use App\Models\{Category, Member, Transaction, User, Wallet};
 
 class DashboardController extends Controller
 {
@@ -45,9 +45,7 @@ class DashboardController extends Controller
         }
 
         // Get categories, wallets, members for transaction form
-        $categories = Category::with('transactionGroup')
-            ->orderBy('name')
-            ->get();
+        $categories = Category::with('transactionGroup')->orderBy('name')->get();
         $wallets = Wallet::orderBy('name')->get();
         $members = Member::orderBy('name')->get();
 

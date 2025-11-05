@@ -67,11 +67,11 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <div class="text-dark font-weight-bold datetime-text" data-datetime="{{ $transaction->date }}">{{ $transaction->date }}</div>
+                                    <div class="text-dark font-weight-bold">@shortIndonesianDate($transaction->created_at)</div>
                                 </td>
                                 <td>
                                     <span class="badge badge-{{ $transaction->category->transactionGroup->type === 'in' ? 'success' : 'danger' }}">
-                                        @include('components.icon-render', ['icon' => $transaction->category->icon]) {{ $transaction->category->name }}
+                                        <i class="mr-1 {{ $transaction->category->icon }}"></i>{{ $transaction->category->name }}
                                     </span>
                                 </td>
                                 <td>
@@ -87,7 +87,7 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-sm btn-primary btn-edit"
+                                        <button type="button" class="btn btn-sm btn-warning btn-edit"
                                             data-id="{{ $transaction->id }}"
                                             data-category="{{ $transaction->category_id }}"
                                             data-amount="{{ $transaction->amount }}"
@@ -141,18 +141,21 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="edit_category_id">Kategori</label>
-                        <select class="form-control" id="edit_category_id" name="category_id" required>
-                            <option value="">Pilih Kategori</option>
-                            @foreach($categories->groupBy('transactionGroup.name') as $groupName => $groupCategories)
-                                <optgroup label="{{ $groupName }}">
-                                    @foreach($groupCategories as $category)
-                                        <option value="{{ $category->id }}">
-                                            {{ $category->icon }} {{ $category->name }} ({{ $category->transactionGroup->type === 'in' ? 'Cash In' : 'Cash Out' }})
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            @endforeach
-                        </select>
+                        <div class="input-group align-items-center">
+                            <select class="form-control mr-3" id="edit_category_id" name="category_id" required>
+                                <option value="">Pilih Kategori</option>
+                                @foreach($categories->groupBy('transactionGroup.name') as $groupName => $groupCategories)
+                                    <optgroup label="{{ $groupName }}">
+                                        @foreach($groupCategories as $category)
+                                            <option value="{{ $category->id }}" data-icon="{{ $category->icon }}">
+                                                {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                            <i id="selectedIcon" class="fa"></i>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="edit_wallet_id">Dompet</label>
@@ -165,12 +168,17 @@
                     </div>
                     <div class="form-group">
                         <label for="edit_member_id">Anggota</label>
-                        <select class="form-control" id="edit_member_id" name="member_id">
-                            <option value="">Pilih Anggota (opsional)</option>
-                            @foreach($members as $m)
-                                <option value="{{ $m->id }}">{{ $m->icon }} {{ $m->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="input-group align-items-center">
+                            <select class="form-control mr-3" id="edit_member_id" name="member_id">
+                                <option value="">Pilih Anggota (opsional)</option>
+                                @foreach($members as $m)
+                                    <option value="{{ $m->id }}" data-icon="{{ $m->icon }}">
+                                        {{ $m->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <i id="selectedMemberIcon" class="fa"></i>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="edit_amount">Jumlah</label>
@@ -239,16 +247,27 @@ $(document).ready(function() {
         const date = $(this).data('date');
         const note = $(this).data('note');
 
-        // Set form action
         $('#editForm').attr('action', '/transactions/' + id);
-
-        // Fill form fields
         $('#edit_category_id').val(categoryId);
         $('#edit_amount').val(amount);
         $('#edit_wallet_id').val(walletId);
         $('#edit_member_id').val(memberId);
         $('#edit_date').val(date);
         $('#edit_note').val(note);
+
+        // tampilkan ikon kategori
+        const categoryIcon = $('#edit_category_id option:selected').data('icon');
+        $('#selectedIcon').attr('class', categoryIcon);
+
+        // tampilkan ikon member
+        const memberIcon = $('#edit_member_id option:selected').data('icon');
+        $('#selectedMemberIcon').attr('class', memberIcon);
+    });
+
+    // update ikon saat dropdown member berubah
+    $('#edit_member_id').on('change', function() {
+        const icon = $(this).find(':selected').data('icon');
+        $('#selectedMemberIcon').attr('class', icon);
     });
 
     // Handle Delete button click

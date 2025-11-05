@@ -21,9 +21,7 @@ class TransactionController extends Controller
         ->paginate(20);
 
         // Get categories for edit modal
-        $categories = Category::with('transactionGroup')
-            ->orderBy('name')
-            ->get();
+        $categories = Category::with('transactionGroup')->orderBy('name')->get();
         $wallets = Wallet::orderBy('name')->get();
         $members = Member::orderBy('name')->get();
 

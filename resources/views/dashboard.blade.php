@@ -151,27 +151,29 @@
 
                     <div class="form-group">
                         <label for="category_id">Kategori</label>
-                        <select class="form-control" id="category_id" name="category_id" required>
-                            <option value="">Pilih Kategori</option>
-                            @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'in')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
-                                <optgroup label="{{ $groupName }}" class="category-group in-category">
-                                    @foreach($groupCategories as $category)
-                                        <option value="{{ $category->id }}" data-type="in" {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                                        @include('components.icon-render', ['icon' => $category->icon]) {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            @endforeach
-                            @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'out')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
-                                <optgroup label="{{ $groupName }}" class="category-group out-category" style="display: none;">
-                                    @foreach($groupCategories as $category)
-                                        <option value="{{ $category->id }}" data-type="out" {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                                            {{ $category->icon }} {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            @endforeach
-                        </select>
+                        <div class="input-group">
+                            <select class="form-control" id="category_id" name="category_id" required>
+                                <option value="">Pilih Kategori</option>
+                                @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'in')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
+                                    <optgroup label="{{ $groupName }}" class="category-group in-category">
+                                        @foreach($groupCategories as $category)
+                                            <option value="{{ $category->id }}" data-type="in" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                            @include('components.icon-render', ['icon' => $category->icon]) {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                                @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'out')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
+                                    <optgroup label="{{ $groupName }}" class="category-group out-category" style="display: none;">
+                                        @foreach($groupCategories as $category)
+                                            <option value="{{ $category->id }}" data-type="out" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                                {{ $category->icon }} {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="wallet_id">Dompet</label>
