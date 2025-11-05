@@ -13,12 +13,16 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\WalletTransferController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\TrashController;
+use App\Http\Controllers\TelegramController;
 use Illuminate\Support\Facades\Route;
 
 // Welcome Page
 Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
+
+// Telegram Webhook (No CSRF protection needed for external webhook)
+Route::post('/telegram/webhook', [TelegramController::class, 'webhook'])->withoutMiddleware(['web']);
 
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
