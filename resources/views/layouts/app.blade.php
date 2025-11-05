@@ -124,11 +124,86 @@
                             </a>
                         </li>
 
+                        @role('admin|manager')
+                        <li class="nav-section">
+                            <span class="sidebar-mini-icon">
+                                <i class="fa fa-ellipsis-h"></i>
+                            </span>
+                            <h4 class="text-section">Master Data</h4>
+                        </li>
+
+                        <li class="nav-item {{ request()->routeIs('transaction-groups.*') ? 'active' : '' }}">
+                            <a href="{{ route('transaction-groups.index') }}">
+                                <i class="fas fa-layer-group"></i>
+                                <p>Grup Transaksi</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item {{ request()->routeIs('categories.*') ? 'active' : '' }}">
+                            <a href="{{ route('categories.index') }}">
+                                <i class="fas fa-tags"></i>
+                                <p>Kategori</p>
+                            </a>
+                        </li>
+                        <li class="nav-item {{ request()->routeIs('wallet-groups.*') ? 'active' : '' }}">
+                            <a href="{{ route('wallet-groups.index') }}">
+                                <i class="fas fa-wallet"></i>
+                                <p>Grup Dompet</p>
+                            </a>
+                        </li>
+                        <li class="nav-item {{ request()->routeIs('wallets.*') ? 'active' : '' }}">
+                            <a href="{{ route('wallets.index') }}">
+                                <i class="fas fa-wallet"></i>
+                                <p>Dompet</p>
+                            </a>
+                        </li>
+                        <li class="nav-item {{ request()->routeIs('wallet-transfers.*') ? 'active' : '' }}">
+                            <a href="{{ route('wallet-transfers.index') }}">
+                                <i class="fas fa-random"></i>
+                                <p>Transfer Dompet</p>
+                            </a>
+                        </li>
+                        <li class="nav-item {{ request()->routeIs('members.*') ? 'active' : '' }}">
+                            <a href="{{ route('members.index') }}">
+                                <i class="fas fa-user-friends"></i>
+                                <p>Anggota</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item {{ request()->routeIs('trash.*') ? 'active' : '' }}">
+                            <a href="{{ route('trash.index') }}">
+                                <i class="fas fa-trash"></i>
+                                <p>Tempat Sampah</p>
+                            </a>
+                        </li>
+                        @endrole
+
                         @role('admin')
+                        <li class="nav-section">
+                            <span class="sidebar-mini-icon">
+                                <i class="fa fa-ellipsis-h"></i>
+                            </span>
+                            <h4 class="text-section">Administrasi</h4>
+                        </li>
+
                         <li class="nav-item {{ request()->routeIs('users.*') ? 'active' : '' }}">
                             <a href="{{ route('users.index') }}">
                                 <i class="fas fa-users"></i>
                                 <p>Manajemen User</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item {{ request()->routeIs('roles.*') ? 'active' : '' }}">
+                            <a href="{{ route('roles.index') }}">
+                                <i class="fas fa-user-tag"></i>
+                                <p>Kelola Role</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item {{ request()->routeIs('permissions.*') ? 'active' : '' }}">
+                            <a href="{{ route('permissions.index') }}">
+                                <i class="fas fa-shield-alt"></i>
+                                <p>Kelola Permission</p>
                             </a>
                         </li>
                         @endrole
