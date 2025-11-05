@@ -6,21 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class TransactionGroup extends Model
+class Member extends Model
 {
     use SoftDeletes;
 
     protected $fillable = [
         'name',
-        'type',
+        'icon',
         'description',
     ];
 
-    /**
-     * Get all categories for this transaction group.
-     */
-    public function categories(): HasMany
+    public function transactions(): HasMany
     {
-        return $this->hasMany(Category::class, 'group_id');
+        return $this->hasMany(Transaction::class, 'member_id');
     }
 }
+
+

@@ -6,21 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class TransactionGroup extends Model
+class WalletGroup extends Model
 {
     use SoftDeletes;
 
     protected $fillable = [
         'name',
-        'type',
+        'icon',
         'description',
     ];
 
     /**
-     * Get all categories for this transaction group.
+     * Get the wallets under this group.
      */
-    public function categories(): HasMany
+    public function wallets(): HasMany
     {
-        return $this->hasMany(Category::class, 'group_id');
+        return $this->hasMany(Wallet::class, 'wallet_group_id');
     }
 }
+
+
