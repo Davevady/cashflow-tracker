@@ -40,12 +40,20 @@
             @csrf
             @method('PUT')
             <div class="form-group">
-                <label>Grup Dompet</label>
-                <select name="wallet_group_id" class="form-control" required>
-                    @foreach($groups as $group)
-                        <option value="{{ $group->id }}" {{ old('wallet_group_id', $wallet->wallet_group_id) == $group->id ? 'selected' : '' }}>{{ $group->name }}</option>
-                    @endforeach
-                </select>
+                <label for="wallet_group_id">Grup Dompet <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <select name="wallet_group_id" id="wallet_group_id" class="form-control {{ $errors->has('wallet_group_id') ? 'is-invalid' : '' }}" required>
+                        <option value="">-- Pilih Grup --</option>
+                        @foreach($groups as $group)
+                            <option value="{{ $group->id }}" {{ old('wallet_group_id', $wallet->wallet_group_id) == $group->id ? 'selected' : '' }}>{{ $group->name }}</option>
+                        @endforeach
+                    </select>
+                    <div class="input-group-append">
+                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAddWalletGroup" title="Tambah Grup Baru">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
                 @error('wallet_group_id')<small class="text-danger">{{ $message }}</small>@enderror
             </div>
             <div class="form-group">
@@ -85,6 +93,8 @@
         </div>
     </div>
 </div>
+
+@include('components.modal-add-wallet-group')
 @endsection
 
 

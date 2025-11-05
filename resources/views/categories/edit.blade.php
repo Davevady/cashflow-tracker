@@ -38,23 +38,30 @@
                 <div class="card-body">
                     <div class="form-group">
                         <label for="group_id">Grup Transaksi <span class="text-danger">*</span></label>
-                        <select class="form-control @error('group_id') is-invalid @enderror"
-                                id="group_id"
-                                name="group_id"
-                                required>
-                            <option value="">-- Pilih Grup Transaksi --</option>
-                            @foreach($transactionGroups->groupBy('type') as $type => $groups)
-                                <optgroup label="{{ $type === 'in' ? 'Cash IN (Pemasukan)' : 'Cash OUT (Pengeluaran)' }}">
-                                    @foreach($groups as $group)
-                                        <option value="{{ $group->id }}" {{ old('group_id', $category->group_id) == $group->id ? 'selected' : '' }}>
-                                            {{ $group->name }}
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            @endforeach
-                        </select>
+                        <div class="input-group">
+                            <select class="form-control @error('group_id') is-invalid @enderror"
+                                    id="group_id"
+                                    name="group_id"
+                                    required>
+                                <option value="">-- Pilih Grup Transaksi --</option>
+                                @foreach($transactionGroups->groupBy('type') as $type => $groups)
+                                    <optgroup label="{{ $type === 'in' ? 'Cash IN (Pemasukan)' : 'Cash OUT (Pengeluaran)' }}">
+                                        @foreach($groups as $group)
+                                            <option value="{{ $group->id }}" {{ old('group_id', $category->group_id) == $group->id ? 'selected' : '' }}>
+                                                {{ $group->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAddTransactionGroup" title="Tambah Grup Baru">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
                         @error('group_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                         <small class="form-text text-muted">
                             Tipe kategori akan mengikuti tipe grup transaksi yang dipilih
@@ -146,5 +153,7 @@
         </div>
     </div>
 </div>
+
+@include('components.modal-add-transaction-group')
 @endsection
 
