@@ -1,0 +1,25 @@
+{
+  "name": "cashflow-scraper",
+  "version": "1.0.0",
+  "description": "Money+ and GoPay scraper for CashFlow Tracker",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "scrape:gopay": "node run_gopay.js",
+    "scrape:moneyplus": "node run_money_plus.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "scraper",
+    "appium",
+    "money-plus",
+    "gopay"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "webdriverio": "^8.0.0",
+    "axios": "^1.6.0",
+    "xlsx": "^0.18.5"
+  }
+}

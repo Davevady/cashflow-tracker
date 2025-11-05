@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\Api\WalletSyncController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -16,3 +17,7 @@ Route::apiResource('transactions', TransactionController::class)->names([
     'update' => 'api.transactions.update',
     'destroy' => 'api.transactions.destroy',
 ]);
+
+// Wallet Sync API Routes (for Money+ scraper)
+Route::post('/wallets/sync-from-scraper', [WalletSyncController::class, 'syncFromScraper']);
+Route::get('/wallets/sync-status', [WalletSyncController::class, 'status']);
