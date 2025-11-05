@@ -13,7 +13,14 @@
      * @returns {string} - String dengan format Rupiah
      */
     window.formatRupiah = function(angka, prefix = 'Rp ') {
-        const numberString = angka.toString().replace(/[^,\d]/g, '');
+        // Convert to string and remove .00 if exists
+        let numStr = angka.toString().replace(/\.00$/, '');
+
+        // Parse to remove any decimal points and convert to integer
+        const num = Math.floor(parseFloat(numStr.replace(/[^0-9\-]/g, '')) || 0);
+
+        // Convert to string and format
+        const numberString = num.toString().replace(/[^,\d]/g, '');
         const split = numberString.split(',');
         const sisa = split[0].length % 3;
         let rupiah = split[0].substr(0, sisa);
@@ -24,7 +31,6 @@
             rupiah += separator + ribuan.join('.');
         }
 
-        rupiah = split[1] !== undefined ? rupiah + ',' + split[1] : rupiah;
         return prefix + rupiah;
     };
 
@@ -54,7 +60,12 @@
 
             // Format nilai awal jika ada
             if ($input.val()) {
-                const formatted = formatRupiah($input.val(), '');
+                let value = $input.val();
+                // Remove any decimal including .00
+                value = value.replace(/\.\d+$/, '');
+                // Convert to integer
+                value = Math.floor(parseFloat(value) || 0);
+                const formatted = formatRupiah(value, '');
                 $input.val(formatted);
             }
 
@@ -134,6 +145,32 @@
 
         // Initialize Number format
         initNumberFormat();
+
+        // Format display money text
+        (function initMoneyText(){
+            $('[data-amount], .money-text').each(function(){
+                const $el = $(this);
+                const raw = $el.attr('data-amount') || $el.text();
+                // Remove .00 if exists before parsing
+                const cleanRaw = raw.toString().replace(/\.00$/, '');
+                const num = parseInt(cleanRaw.replace(/[^0-9\-]/g, '')) || 0;
+                $el.text(formatRupiah(num, 'Rp '));
+            });
+        })();
+
+        // DateTime formatter (simple Indo dd/mm/YYYY HH:mm)
+        (function initDateTimeText(){
+            function pad(n){ return n < 10 ? '0'+n : ''+n; }
+            $('[data-datetime], .datetime-text').each(function(){
+                const $el = $(this);
+                const iso = $el.attr('data-datetime') || $el.text();
+                const dt = new Date(iso);
+                if (!isNaN(dt.getTime())) {
+                    const formatted = pad(dt.getDate()) + '/' + pad(dt.getMonth()+1) + '/' + dt.getFullYear() + ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+                    $el.text(formatted);
+                }
+            });
+        })();
 
         // Re-initialize when modal is shown
         $('.modal').on('shown.bs.modal', function() {

@@ -45,32 +45,44 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
+                                <th width="8%">Tipe</th>
                                 <th width="12%">Tanggal</th>
                                 <th width="15%">Kategori</th>
-                                <th width="12%">Grup</th>
+                                <th width="10%">Grup</th>
+                                <th>Dompet</th>
+                                <th>Anggota</th>
                                 <th>Catatan</th>
-                                <th width="15%" class="text-right">Jumlah</th>
-                                <th width="12%" class="text-center">Aksi</th>
+                                <th width="14%" class="text-right">Jumlah</th>
+                                <th width="10%" class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($transactions as $transaction)
                             <tr>
                                 <td>
-                                    <div class="text-dark font-weight-bold">@shortIndonesianDate($transaction->created_at)</div>
+                                    @if($transaction->category->transactionGroup->type === 'in')
+                                        <span class="badge badge-success"><i class="fa fa-arrow-down"></i> IN</span>
+                                    @else
+                                        <span class="badge badge-danger"><i class="fa fa-arrow-up"></i> OUT</span>
+                                    @endif
                                 </td>
                                 <td>
-                                    <span class="badge badge-{{ $transaction->category->type === 'income' ? 'success' : 'danger' }}">
-                                        {{ $transaction->category->icon }} {{ $transaction->category->name }}
+                                    <div class="text-dark font-weight-bold datetime-text" data-datetime="{{ $transaction->date }}">{{ $transaction->date }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-{{ $transaction->category->transactionGroup->type === 'in' ? 'success' : 'danger' }}">
+                                        @include('components.icon-render', ['icon' => $transaction->category->icon]) {{ $transaction->category->name }}
                                     </span>
                                 </td>
                                 <td>
                                     <span class="text-muted">{{ $transaction->category->transactionGroup?->name ?? '-' }}</span>
                                 </td>
+                                <td>{{ $transaction->wallet?->name ?? '-' }}</td>
+                                <td>{{ $transaction->member?->name ?? '-' }}</td>
                                 <td>{{ $transaction->note ?? '-' }}</td>
                                 <td class="text-right">
-                                    <span class="text-{{ $transaction->category->type === 'income' ? 'success' : 'danger' }} font-weight-bold">
-                                        {{ $transaction->category->type === 'income' ? '+' : '-' }} Rp {{ number_format($transaction->amount, 0, ',', '.') }}
+                                    <span class="text-{{ $transaction->category->transactionGroup->type === 'in' ? 'success' : 'danger' }} font-weight-bold">
+                                        {{ $transaction->category->transactionGroup->type === 'in' ? '+' : '-' }} <span class="money-text" data-amount="{{ $transaction->amount }}"></span>
                                     </span>
                                 </td>
                                 <td class="text-center">
@@ -79,6 +91,8 @@
                                             data-id="{{ $transaction->id }}"
                                             data-category="{{ $transaction->category_id }}"
                                             data-amount="{{ $transaction->amount }}"
+                                            data-wallet="{{ $transaction->wallet_id }}"
+                                            data-member="{{ $transaction->member_id }}"
                                             data-date="{{ $transaction->date->format('Y-m-d\TH:i') }}"
                                             data-note="{{ $transaction->note }}"
                                             data-toggle="modal"
@@ -96,7 +110,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" class="text-center">Belum ada transaksi</td>
+                                <td colspan="7" class="text-center">Belum ada transaksi</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -133,10 +147,28 @@
                                 <optgroup label="{{ $groupName }}">
                                     @foreach($groupCategories as $category)
                                         <option value="{{ $category->id }}">
-                                            {{ $category->icon }} {{ $category->name }} ({{ $category->type === 'income' ? 'Cash In' : 'Cash Out' }})
+                                            {{ $category->icon }} {{ $category->name }} ({{ $category->transactionGroup->type === 'in' ? 'Cash In' : 'Cash Out' }})
                                         </option>
                                     @endforeach
                                 </optgroup>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_wallet_id">Dompet</label>
+                        <select class="form-control" id="edit_wallet_id" name="wallet_id" required>
+                            <option value="">Pilih Dompet</option>
+                            @foreach($wallets as $w)
+                                <option value="{{ $w->id }}">{{ $w->walletGroup->name }} - {{ $w->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_member_id">Anggota</label>
+                        <select class="form-control" id="edit_member_id" name="member_id">
+                            <option value="">Pilih Anggota (opsional)</option>
+                            @foreach($members as $m)
+                                <option value="{{ $m->id }}">{{ $m->icon }} {{ $m->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -202,6 +234,8 @@ $(document).ready(function() {
         const id = $(this).data('id');
         const categoryId = $(this).data('category');
         const amount = $(this).data('amount');
+        const walletId = $(this).data('wallet');
+        const memberId = $(this).data('member');
         const date = $(this).data('date');
         const note = $(this).data('note');
 
@@ -211,6 +245,8 @@ $(document).ready(function() {
         // Fill form fields
         $('#edit_category_id').val(categoryId);
         $('#edit_amount').val(amount);
+        $('#edit_wallet_id').val(walletId);
+        $('#edit_member_id').val(memberId);
         $('#edit_date').val(date);
         $('#edit_note').val(note);
     });

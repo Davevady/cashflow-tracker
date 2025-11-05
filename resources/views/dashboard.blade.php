@@ -34,7 +34,7 @@
                     <div class="col col-stats ml-3 ml-sm-0">
                         <div class="numbers">
                             <p class="card-category">Pemasukan</p>
-                            <h4 class="card-title">Rp {{ number_format($totalIncome, 0, ',', '.') }}</h4>
+                            <h4 class="card-title"><span class="money-text" data-amount="{{ $totalIncome }}"></span></h4>
                         </div>
                     </div>
                 </div>
@@ -53,7 +53,7 @@
                     <div class="col col-stats ml-3 ml-sm-0">
                         <div class="numbers">
                             <p class="card-category">Pengeluaran</p>
-                            <h4 class="card-title">Rp {{ number_format($totalExpense, 0, ',', '.') }}</h4>
+                            <h4 class="card-title"><span class="money-text" data-amount="{{ $totalExpense }}"></span></h4>
                         </div>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
                     <div class="col col-stats ml-3 ml-sm-0">
                         <div class="numbers">
                             <p class="card-category">Saldo</p>
-                            <h4 class="card-title">Rp {{ number_format($balance, 0, ',', '.') }}</h4>
+                            <h4 class="card-title"><span class="money-text" data-amount="{{ $balance }}"></span></h4>
                         </div>
                     </div>
                 </div>
@@ -135,11 +135,11 @@
                     <label class="font-weight-bold">Tipe Transaksi</label>
                     <div class="btn-group btn-group-toggle w-100 transaction-type-toggle" data-toggle="buttons">
                         <label class="btn btn-success active" id="btn-income">
-                            <input type="radio" name="type_toggle" value="income" checked>
+                            <input type="radio" name="type_toggle" value="in" checked>
                             <i class="fa fa-arrow-down"></i> Cash In
                         </label>
                         <label class="btn btn-danger" id="btn-expense">
-                            <input type="radio" name="type_toggle" value="expense">
+                            <input type="radio" name="type_toggle" value="out">
                             <i class="fa fa-arrow-up"></i> Cash Out
                         </label>
                     </div>
@@ -147,27 +147,51 @@
 
                 <form action="{{ route('transactions.store') }}" method="POST" id="transactionForm">
                     @csrf
+                    <input type="hidden" name="type" id="transaction_type" value="in">
+
                     <div class="form-group">
                         <label for="category_id">Kategori</label>
                         <select class="form-control" id="category_id" name="category_id" required>
                             <option value="">Pilih Kategori</option>
-                            @foreach($categories->where('type', 'income')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
-                                <optgroup label="{{ $groupName }}" class="category-group income-category">
+                            @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'in')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
+                                <optgroup label="{{ $groupName }}" class="category-group in-category">
                                     @foreach($groupCategories as $category)
-                                        <option value="{{ $category->id }}" data-type="income" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                        <option value="{{ $category->id }}" data-type="in" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                        @include('components.icon-render', ['icon' => $category->icon]) {{ $category->name }}
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                            @endforeach
+                            @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'out')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
+                                <optgroup label="{{ $groupName }}" class="category-group out-category" style="display: none;">
+                                    @foreach($groupCategories as $category)
+                                        <option value="{{ $category->id }}" data-type="out" {{ old('category_id') == $category->id ? 'selected' : '' }}>
                                             {{ $category->icon }} {{ $category->name }}
                                         </option>
                                     @endforeach
                                 </optgroup>
                             @endforeach
-                            @foreach($categories->where('type', 'expense')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
-                                <optgroup label="{{ $groupName }}" class="category-group expense-category" style="display: none;">
-                                    @foreach($groupCategories as $category)
-                                        <option value="{{ $category->id }}" data-type="expense" {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                                            {{ $category->icon }} {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="wallet_id">Dompet</label>
+                        <select class="form-control" id="wallet_id" name="wallet_id" required>
+                            <option value="">Pilih Dompet</option>
+                            @foreach($wallets as $w)
+                                <option value="{{ $w->id }}" {{ old('wallet_id') == $w->id ? 'selected' : '' }}>
+                                    {{ $w->walletGroup->name }} - {{ $w->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="member_id">Anggota</label>
+                        <select class="form-control" id="member_id" name="member_id">
+                            <option value="">Pilih Anggota (opsional)</option>
+                            @foreach($members as $m)
+                                <option value="{{ $m->id }}" {{ old('member_id') == $m->id ? 'selected' : '' }}>
+                                    {{ $m->icon }} {{ $m->name }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -211,29 +235,29 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
+                                <th>Jumlah</th>
                                 <th>Tanggal</th>
                                 <th>Kategori</th>
                                 <th>Catatan</th>
-                                <th class="text-right">Jumlah</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($recentTransactions as $transaction)
                             <tr>
-                                <td>
-                                    <div class="text-dark font-weight-bold">@shortIndonesianDate($transaction->created_at)</div>
+                                <td class="text-right">
+                                    <span class="text-{{ $transaction->category->transactionGroup->type === 'in' ? 'success' : 'danger' }} font-weight-bold">
+                                        {{ $transaction->category->transactionGroup->type === 'in' ? '+' : '-' }} <span class="money-text" data-amount="{{ $transaction->amount }}"></span>
+                                    </span>
                                 </td>
                                 <td>
-                                    <span class="badge badge-{{ $transaction->category->type === 'income' ? 'success' : 'danger' }}">
+                                    <div class="text-dark">@shortIndonesianDate($transaction->created_at)</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-{{ $transaction->category->transactionGroup->type === 'in' ? 'success' : 'danger' }}">
                                         {{ $transaction->category->icon }} {{ $transaction->category->name }}
                                     </span>
                                 </td>
                                 <td>{{ Str::limit($transaction->note ?? '-', 30) }}</td>
-                                <td class="text-right">
-                                    <span class="text-{{ $transaction->category->type === 'income' ? 'success' : 'danger' }} font-weight-bold">
-                                        {{ $transaction->category->type === 'income' ? '+' : '-' }} Rp {{ number_format($transaction->amount, 0, ',', '.') }}
-                                    </span>
-                                </td>
                             </tr>
                             @empty
                             <tr>
@@ -248,6 +272,52 @@
     </div>
 </div>
 
+<!-- Charts Row -->
+<div class="row mt-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="card-title">Ringkasan per Kategori</div>
+                <div>
+                    <select id="categoryTypeSelect" class="form-control form-control-sm" style="width:auto;">
+                        <option value="out" selected>Pengeluaran</option>
+                        <option value="in">Pemasukan</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="chartCategory" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><div class="card-title">Pemasukan vs Pengeluaran per Bulan</div></div>
+            <div class="card-body">
+                <canvas id="chartMonthly" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><div class="card-title">Ringkasan per Anggota</div></div>
+            <div class="card-body">
+                <canvas id="chartMember" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><div class="card-title">Ringkasan per Dompet</div></div>
+            <div class="card-body">
+                <canvas id="chartWallet" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- User Management (Admin Only) -->
 {{-- @role('admin')
 @if($users)
@@ -360,7 +430,6 @@
     }
 
     .transaction-type-toggle .btn-success.active {
-        background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%) !important;
         color: white !important;
     }
 
@@ -393,6 +462,9 @@ $(document).ready(function() {
         $('.transaction-type-toggle .btn').removeClass('active');
         $parentLabel.addClass('active');
 
+        // Update hidden type field
+        $('#transaction_type').val(selectedType);
+
         // Reset select
         categorySelect.val('');
 
@@ -401,12 +473,12 @@ $(document).ready(function() {
         categorySelect.find('optgroup').hide();
 
         // Show categories for selected type
-        if (selectedType === 'income') {
-            categorySelect.find('option[data-type="income"]').show();
-            categorySelect.find('.income-category').show();
+        if (selectedType === 'in') {
+            categorySelect.find('option[data-type="in"]').show();
+            categorySelect.find('.in-category').show();
         } else {
-            categorySelect.find('option[data-type="expense"]').show();
-            categorySelect.find('.expense-category').show();
+            categorySelect.find('option[data-type="out"]').show();
+            categorySelect.find('.out-category').show();
         }
     });
 
@@ -417,6 +489,93 @@ $(document).ready(function() {
 
     // Trigger on page load to show correct categories
     $('input[name="type_toggle"]:checked').trigger('change');
+
+    // Charts
+    const catRaw = @json($byCategory);
+
+    const monthlyLabels = @json($monthly->pluck('ym'));
+    const monthlyIncome = @json($monthly->pluck('income'));
+    const monthlyExpense = @json($monthly->pluck('expense'));
+
+    const memberRaw = @json($byMember);
+    const memberLabels = [...new Set(memberRaw.map(x => x.label))];
+    const memberIn = memberLabels.map(lbl => {
+        const row = memberRaw.find(r => r.label === lbl && r.type === 'in');
+        return row ? Number(row.total) : 0;
+    });
+    const memberOut = memberLabels.map(lbl => {
+        const row = memberRaw.find(r => r.label === lbl && r.type === 'out');
+        return row ? Number(row.total) : 0;
+    });
+
+    const walletRaw = @json($byWallet);
+    const walletLabels = [...new Set(walletRaw.map(x => x.label))];
+    const walletIn = walletLabels.map(lbl => {
+        const row = walletRaw.find(r => r.label === lbl && r.type === 'in');
+        return row ? Number(row.total) : 0;
+    });
+    const walletOut = walletLabels.map(lbl => {
+        const row = walletRaw.find(r => r.label === lbl && r.type === 'out');
+        return row ? Number(row.total) : 0;
+    });
+
+    // Load Chart.js
+    $.getScript("{{ asset('assets/js/plugin/chart.js/chart.min.js') }}", function(){
+        const ctxCat = document.getElementById('chartCategory').getContext('2d');
+        const catColors = ['#4CAF50','#F44336','#2196F3','#FFC107','#9C27B0','#00BCD4','#8BC34A','#FF5722'];
+        const categoryChart = new Chart(ctxCat, {
+            type: 'doughnut',
+            data: { labels: [], datasets: [{ data: [], backgroundColor: catColors }] },
+            options: { responsive: true, legend: { position: 'bottom' } }
+        });
+
+        function renderCategoryChart(type) {
+            const filtered = catRaw.filter(x => x.type === type);
+            const labels = filtered.map(x => x.label);
+            const data = filtered.map(x => Number(x.total));
+            categoryChart.data.labels = labels;
+            categoryChart.data.datasets[0].data = data;
+            categoryChart.update();
+        }
+
+        // initial render
+        renderCategoryChart($('#categoryTypeSelect').val());
+
+        // on dropdown change
+        $('#categoryTypeSelect').on('change', function(){
+            renderCategoryChart($(this).val());
+        });
+
+        const ctxMonthly = document.getElementById('chartMonthly').getContext('2d');
+        new Chart(ctxMonthly, {
+            type: 'bar',
+            data: { labels: monthlyLabels, datasets: [
+                { label: 'IN', backgroundColor: '#4CAF50', data: monthlyIncome },
+                { label: 'OUT', backgroundColor: '#F44336', data: monthlyExpense }
+            ]},
+            options: { responsive: true, scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+        });
+
+        const ctxMember = document.getElementById('chartMember').getContext('2d');
+        new Chart(ctxMember, {
+            type: 'bar',
+            data: { labels: memberLabels, datasets: [
+                { label: 'IN', backgroundColor: '#4CAF50', data: memberIn },
+                { label: 'OUT', backgroundColor: '#F44336', data: memberOut }
+            ]},
+            options: { responsive: true, scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+        });
+
+        const ctxWallet = document.getElementById('chartWallet').getContext('2d');
+        new Chart(ctxWallet, {
+            type: 'bar',
+            data: { labels: walletLabels, datasets: [
+                { label: 'IN', backgroundColor: '#4CAF50', data: walletIn },
+                { label: 'OUT', backgroundColor: '#F44336', data: walletOut }
+            ]},
+            options: { responsive: true, scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+        });
+    });
 });
 </script>
 @endpush
