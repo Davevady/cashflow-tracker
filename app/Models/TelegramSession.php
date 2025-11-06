@@ -10,6 +10,7 @@ class TelegramSession extends Model
     protected $fillable = [
         'chat_id',
         'user_id',
+        'is_authenticated',
         'state',
         'data',
         'last_activity',
@@ -19,6 +20,7 @@ class TelegramSession extends Model
         'data' => 'array',
         'last_activity' => 'datetime',
         'chat_id' => 'integer',
+        'is_authenticated' => 'boolean',
     ];
 
     /**
@@ -62,8 +64,69 @@ class TelegramSession extends Model
             ['chat_id' => $chatId],
             [
                 'state' => 'idle',
+                'is_authenticated' => false,
                 'last_activity' => now(),
             ]
         );
+    }
+
+    /**
+     * Authenticate user with email and password
+     */
+    public function authenticate(string $email, string $password): bool
+    {
+        $user = User::where('email', $email)->first();
+
+        if ($user && \Hash::check($password, $user->password)) {
+            $this->update([
+                'user_id' => $user->id,
+                'is_authenticated' => true,
+                'state' => 'idle',
+                'data' => null,
+                'last_activity' => now(),
+            ]);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Logout user
+     */
+    public function logout(): void
+    {
+        $this->update([
+            'user_id' => null,
+            'is_authenticated' => false,
+            'state' => 'idle',
+            'data' => null,
+            'last_activity' => now(),
+        ]);
+    }
+
+    /**
+     * Check if session is authenticated
+     */
+    public function isAuthenticated(): bool
+    {
+        // Check if authenticated and not expired (30 days)
+        if ($this->is_authenticated && $this->user_id) {
+            $daysSinceActivity = now()->diffInDays($this->last_activity);
+            if ($daysSinceActivity > 30) {
+                $this->logout();
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Scope for authenticated sessions only
+     */
+    public function scopeAuthenticated($query)
+    {
+        return $query->where('is_authenticated', true)->whereNotNull('user_id');
     }
 }

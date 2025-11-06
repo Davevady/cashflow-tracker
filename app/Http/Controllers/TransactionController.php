@@ -13,9 +13,11 @@ class TransactionController extends Controller
      */
     public function index()
     {
+        // Filter transactions by current user
         $transactions = Transaction::with([
             'category.transactionGroup', 'wallet', 'member'
         ])
+        ->forUser() // Apply user scope
         ->whereHas('category.transactionGroup') // Ensure category and transactionGroup exist
         ->orderBy('date', 'desc')
         ->paginate(20);
@@ -42,6 +44,9 @@ class TransactionController extends Controller
             'note' => 'nullable|string',
         ]);
 
+        // Add user_id to validated data
+        $validated['user_id'] = auth()->id();
+
         DB::transaction(function () use ($validated) {
             $transaction = Transaction::create($validated);
 
@@ -66,6 +71,11 @@ class TransactionController extends Controller
      */
     public function update(Request $request, Transaction $transaction)
     {
+        // Check if user owns this transaction
+        if ($transaction->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'wallet_id' => 'required|exists:wallets,id',
@@ -113,6 +123,11 @@ class TransactionController extends Controller
      */
     public function destroy(Transaction $transaction)
     {
+        // Check if user owns this transaction
+        if ($transaction->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         DB::transaction(function () use ($transaction) {
             // reverse wallet balance impact
             $category = $transaction->category()->with('transactionGroup')->first();

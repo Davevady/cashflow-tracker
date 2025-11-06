@@ -14,16 +14,18 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        // Get recent transactions
+        // Get recent transactions for current user
         $recentTransactions = Transaction::with(['category.transactionGroup', 'wallet', 'member'])
+            ->forUser() // Filter by current user
             ->whereHas('category.transactionGroup') // Ensure category and transactionGroup exist
             ->orderBy('date', 'desc')
             ->limit(10)
             ->get();
 
-        // Calculate summary using joins - convert to integer to remove .00
+        // Calculate summary using joins for current user - convert to integer to remove .00
         $totalIncome = (int) Transaction::join('categories', 'transactions.category_id', '=', 'categories.id')
             ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
+            ->where('transactions.user_id', auth()->id()) // Filter by user
             ->whereNull('categories.deleted_at')
             ->whereNull('transaction_groups.deleted_at')
             ->where('transaction_groups.type', 'in')
@@ -31,6 +33,7 @@ class DashboardController extends Controller
 
         $totalExpense = (int) Transaction::join('categories', 'transactions.category_id', '=', 'categories.id')
             ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
+            ->where('transactions.user_id', auth()->id()) // Filter by user
             ->whereNull('categories.deleted_at')
             ->whereNull('transaction_groups.deleted_at')
             ->where('transaction_groups.type', 'out')
@@ -49,10 +52,11 @@ class DashboardController extends Controller
         $wallets = Wallet::orderBy('name')->get();
         $members = Member::orderBy('name')->get();
 
-        // Aggregations for charts
+        // Aggregations for charts - filtered by current user
         $byCategory = Transaction::selectRaw('categories.name as label, SUM(transactions.amount) as total, transaction_groups.type as type')
             ->join('categories', 'transactions.category_id', '=', 'categories.id')
             ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
+            ->where('transactions.user_id', auth()->id()) // Filter by user
             ->whereNull('categories.deleted_at')
             ->whereNull('transaction_groups.deleted_at')
             ->groupBy('categories.name', 'transaction_groups.type')
@@ -64,6 +68,7 @@ class DashboardController extends Controller
             ->leftJoin('members', 'transactions.member_id', '=', 'members.id')
             ->join('categories', 'transactions.category_id', '=', 'categories.id')
             ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
+            ->where('transactions.user_id', auth()->id()) // Filter by user
             ->whereNull('categories.deleted_at')
             ->whereNull('transaction_groups.deleted_at')
             ->where(function($query) {
@@ -78,6 +83,7 @@ class DashboardController extends Controller
             ->join('wallets', 'transactions.wallet_id', '=', 'wallets.id')
             ->join('categories', 'transactions.category_id', '=', 'categories.id')
             ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
+            ->where('transactions.user_id', auth()->id()) // Filter by user
             ->whereNull('wallets.deleted_at')
             ->whereNull('categories.deleted_at')
             ->whereNull('transaction_groups.deleted_at')
@@ -88,6 +94,7 @@ class DashboardController extends Controller
         $monthly = Transaction::selectRaw('DATE_FORMAT(transactions.date, "%Y-%m") as ym, SUM(CASE WHEN transaction_groups.type = "in" THEN transactions.amount ELSE 0 END) as income, SUM(CASE WHEN transaction_groups.type = "out" THEN transactions.amount ELSE 0 END) as expense')
             ->join('categories', 'transactions.category_id', '=', 'categories.id')
             ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
+            ->where('transactions.user_id', auth()->id()) // Filter by user
             ->whereNull('categories.deleted_at')
             ->whereNull('transaction_groups.deleted_at')
             ->groupBy('ym')

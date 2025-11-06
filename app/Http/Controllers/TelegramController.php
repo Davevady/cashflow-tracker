@@ -63,7 +63,24 @@ class TelegramController extends Controller
 
         // Handle /start command
         if ($text === '/start') {
-            $this->showMainMenu($chatId, $session);
+            $this->showWelcome($chatId, $session);
+            return;
+        }
+
+        // Handle /logout command
+        if ($text === '/logout') {
+            if ($session->isAuthenticated()) {
+                $session->logout();
+                $this->telegram->sendMessage(
+                    $chatId,
+                    "✅ Anda berhasil logout.\n\nGunakan /start untuk login kembali."
+                );
+            } else {
+                $this->telegram->sendMessage(
+                    $chatId,
+                    "❌ Anda belum login.\n\nGunakan /start untuk memulai."
+                );
+            }
             return;
         }
 
@@ -74,11 +91,26 @@ class TelegramController extends Controller
                 $chatId,
                 "❌ Proses dibatalkan.\n\nSilakan pilih menu:"
             );
-            $this->showMainMenu($chatId, $session);
+            if ($session->isAuthenticated()) {
+                $this->showMainMenu($chatId, $session);
+            } else {
+                $this->showWelcome($chatId, $session);
+            }
             return;
         }
 
-        // Handle based on current state
+        // Check if user is authenticated for most operations
+        if (!$session->isAuthenticated()) {
+            // Handle login flow
+            match ($session->state) {
+                'waiting_email' => $this->handleEmailInput($chatId, $text, $session),
+                'waiting_password' => $this->handlePasswordInput($chatId, $text, $session),
+                default => $this->showWelcome($chatId, $session),
+            };
+            return;
+        }
+
+        // Handle authenticated user operations
         match ($session->state) {
             'waiting_amount' => $this->handleAmountInput($chatId, $text, $session),
             'waiting_note' => $this->handleNoteInput($chatId, $text, $session),
@@ -100,13 +132,34 @@ class TelegramController extends Controller
         // Answer callback query to remove loading state
         $this->telegram->answerCallbackQuery($queryId);
 
+        // Check authentication for non-login callbacks
+        if (!$session->isAuthenticated() && $data !== 'start_login') {
+            $this->telegram->editMessageText(
+                $chatId,
+                $messageId,
+                "⚠️ Sesi Anda telah berakhir atau belum login.\n\nGunakan /start untuk login kembali."
+            );
+            return;
+        }
+
+        // Handle login callback
+        if ($data === 'start_login') {
+            $session->updateState('waiting_email');
+            $this->telegram->editMessageText(
+                $chatId,
+                $messageId,
+                "🔐 <b>Login ke CashFlow Tracker</b>\n\n📧 Silakan masukkan email Anda:"
+            );
+            return;
+        }
+
         // Handle callback data
         if ($data === 'add_transaction') {
             $this->showTransactionTypeSelection($chatId, $messageId, $session);
         } elseif ($data === 'view_balance') {
-            $this->showBalance($chatId);
+            $this->showBalance($chatId, $session);
         } elseif ($data === 'daily_report') {
-            $this->showDailyReport($chatId);
+            $this->showDailyReport($chatId, $session);
         } elseif (str_starts_with($data, 'type_')) {
             $type = str_replace('type_', '', $data);
             $this->showCategorySelection($chatId, $messageId, $type, $session);
@@ -298,7 +351,7 @@ class TelegramController extends Controller
                 'amount' => $amount,
                 'note' => $note,
                 'date' => now(),
-                'user_id' => $session->user_id ?? 1, // Default to user_id 1 or implement user auth
+                'user_id' => $session->user_id,
             ]);
 
             // Update wallet balance
@@ -347,17 +400,38 @@ class TelegramController extends Controller
     /**
      * Show wallet balances
      */
-    protected function showBalance(int $chatId): void
+    protected function showBalance(int $chatId, TelegramSession $session): void
     {
-        $wallets = Wallet::where('is_active', true)->get();
+        $userId = $session->user_id;
+
+        // Get wallets for this user by checking transactions
+        $wallets = Wallet::where('is_active', true)
+            ->whereHas('transactions', function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->get();
 
         $text = "💰 <b>Saldo Dompet</b>\n\n";
 
         $totalBalance = 0;
         foreach ($wallets as $wallet) {
+            // Calculate balance from user's transactions only
+            $walletBalance = Transaction::where('wallet_id', $wallet->id)
+                ->where('user_id', $userId)
+                ->join('categories', 'transactions.category_id', '=', 'categories.id')
+                ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
+                ->selectRaw("
+                    SUM(CASE WHEN transaction_groups.type = 'in' THEN transactions.amount ELSE -transactions.amount END) as balance
+                ")
+                ->value('balance') ?? 0;
+
             $text .= "• <b>{$wallet->name}</b>\n";
-            $text .= "  " . $this->telegram->formatMoney($wallet->balance) . "\n\n";
-            $totalBalance += $wallet->balance;
+            $text .= "  " . $this->telegram->formatMoney($walletBalance) . "\n\n";
+            $totalBalance += $walletBalance;
+        }
+
+        if ($wallets->isEmpty()) {
+            $text .= "<i>Belum ada transaksi</i>\n\n";
         }
 
         $text .= "━━━━━━━━━━━━━━━━━━\n";
@@ -369,19 +443,22 @@ class TelegramController extends Controller
     /**
      * Show daily report
      */
-    protected function showDailyReport(int $chatId): void
+    protected function showDailyReport(int $chatId, TelegramSession $session): void
     {
         $today = now()->startOfDay();
+        $userId = $session->user_id;
 
         $income = Transaction::whereHas('category.transactionGroup', function ($q) {
             $q->where('type', 'in');
         })
+            ->where('user_id', $userId)
             ->whereDate('date', $today)
             ->sum('amount');
 
         $expense = Transaction::whereHas('category.transactionGroup', function ($q) {
             $q->where('type', 'out');
         })
+            ->where('user_id', $userId)
             ->whereDate('date', $today)
             ->sum('amount');
 
@@ -400,6 +477,7 @@ class TelegramController extends Controller
             ->whereHas('category.transactionGroup', function ($q) {
                 $q->where('type', 'out');
             })
+            ->where('user_id', $userId)
             ->whereDate('date', $today)
             ->groupBy('category_id')
             ->orderByDesc('total')
@@ -416,5 +494,93 @@ class TelegramController extends Controller
         }
 
         $this->telegram->sendMessage($chatId, $text, $this->telegram->getMainMenuKeyboard());
+    }
+
+    /**
+     * Show welcome message with login button
+     */
+    protected function showWelcome(int $chatId, TelegramSession $session): void
+    {
+        if ($session->isAuthenticated()) {
+            $user = $session->user;
+            $text = "👋 Selamat datang kembali, <b>{$user->name}</b>!\n\n";
+            $text .= "Anda sudah login sebagai: {$user->email}\n\n";
+            $text .= "Pilih menu di bawah untuk memulai:";
+            $this->telegram->sendMessage($chatId, $text, $this->telegram->getMainMenuKeyboard());
+        } else {
+            $text = "🤖 <b>Welcome to CashFlow Tracker Bot!</b>\n\n";
+            $text .= "Bot ini membantu Anda mencatat transaksi keuangan dengan mudah.\n\n";
+            $text .= "Untuk mulai menggunakan bot, silakan login terlebih dahulu dengan email dan password akun CashFlow Tracker Anda.\n\n";
+            $text .= "Tekan tombol <b>Login</b> di bawah untuk memulai.";
+
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '🔐 Login', 'callback_data' => 'start_login']
+                    ]
+                ]
+            ];
+
+            $this->telegram->sendMessage($chatId, $text, $keyboard);
+        }
+    }
+
+    /**
+     * Handle email input
+     */
+    protected function handleEmailInput(int $chatId, string $email, TelegramSession $session): void
+    {
+        // Validate email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->telegram->sendMessage(
+                $chatId,
+                "❌ Format email tidak valid.\n\nSilakan masukkan email yang benar:"
+            );
+            return;
+        }
+
+        // Save email to session
+        $session->updateState('waiting_password', ['email' => $email]);
+
+        $this->telegram->sendMessage(
+            $chatId,
+            "✅ Email: <code>{$email}</code>\n\n🔒 Sekarang masukkan password Anda:\n\n<i>Note: Password tidak akan ditampilkan</i>"
+        );
+    }
+
+    /**
+     * Handle password input
+     */
+    protected function handlePasswordInput(int $chatId, string $password, TelegramSession $session): void
+    {
+        $email = $session->data['email'] ?? null;
+
+        if (!$email) {
+            $this->telegram->sendMessage(
+                $chatId,
+                "❌ Sesi login telah berakhir.\n\nGunakan /start untuk memulai ulang."
+            );
+            $session->reset();
+            return;
+        }
+
+        // Attempt authentication
+        if ($session->authenticate($email, $password)) {
+            $user = $session->user;
+
+            $text = "✅ <b>Login Berhasil!</b>\n\n";
+            $text .= "Selamat datang, <b>{$user->name}</b>!\n";
+            $text .= "Email: {$user->email}\n\n";
+            $text .= "Anda sekarang dapat menggunakan bot untuk mencatat transaksi.\n\n";
+            $text .= "Pilih menu di bawah untuk memulai:";
+
+            $this->telegram->sendMessage($chatId, $text, $this->telegram->getMainMenuKeyboard());
+        } else {
+            $this->telegram->sendMessage(
+                $chatId,
+                "❌ <b>Login Gagal!</b>\n\nEmail atau password salah.\n\nGunakan /start untuk mencoba lagi."
+            );
+            $session->reset();
+        }
     }
 }

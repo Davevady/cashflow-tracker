@@ -11,6 +11,7 @@ class Transaction extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'category_id',
         'wallet_id',
         'member_id',
@@ -46,5 +47,22 @@ class Transaction extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class, 'member_id');
+    }
+
+    /**
+     * Get the user that owns the transaction.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Scope to filter transactions by current user
+     */
+    public function scopeForUser($query, $userId = null)
+    {
+        $userId = $userId ?? auth()->id();
+        return $query->where('user_id', $userId);
     }
 }
