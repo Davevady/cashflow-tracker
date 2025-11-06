@@ -139,15 +139,39 @@
                 @csrf
                 @method('PUT')
                 <div class="modal-body">
+                    <!-- Transaction Type Toggle -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">Tipe Transaksi</label>
+                        <div class="btn-group btn-group-toggle w-100 transaction-type-toggle-edit" data-toggle="buttons">
+                            <label class="btn btn-success" id="btn-edit-income">
+                                <input type="radio" name="edit_type_toggle" value="in">
+                                <i class="fa fa-arrow-down"></i> Cash In
+                            </label>
+                            <label class="btn btn-danger" id="btn-edit-expense">
+                                <input type="radio" name="edit_type_toggle" value="out">
+                                <i class="fa fa-arrow-up"></i> Cash Out
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label for="edit_category_id">Kategori</label>
                         <div class="input-group align-items-center">
                             <select class="form-control mr-3" id="edit_category_id" name="category_id" required>
                                 <option value="">Pilih Kategori</option>
-                                @foreach($categories->groupBy('transactionGroup.name') as $groupName => $groupCategories)
-                                    <optgroup label="{{ $groupName }}">
+                                @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'in')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
+                                    <optgroup label="{{ $groupName }}" class="category-group-edit in-category-edit">
                                         @foreach($groupCategories as $category)
-                                            <option value="{{ $category->id }}" data-icon="{{ $category->icon }}">
+                                            <option value="{{ $category->id }}" data-type="in" data-icon="{{ $category->icon }}">
+                                                {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                                @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'out')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
+                                    <optgroup label="{{ $groupName }}" class="category-group-edit out-category-edit" style="display: none;">
+                                        @foreach($groupCategories as $category)
+                                            <option value="{{ $category->id }}" data-type="out" data-icon="{{ $category->icon }}">
                                                 {{ $category->name }}
                                             </option>
                                         @endforeach
@@ -234,9 +258,124 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+    /* Custom styling for transaction type toggle in edit modal */
+    .transaction-type-toggle-edit {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .transaction-type-toggle-edit .btn {
+        width: 50%;
+        border-radius: 0;
+        border: none;
+        padding: 12px 20px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        position: relative;
+        opacity: 0.6;
+    }
+
+    .transaction-type-toggle-edit .btn:first-child {
+        border-top-left-radius: 0.5rem;
+        border-bottom-left-radius: 0.5rem;
+    }
+
+    .transaction-type-toggle-edit .btn:last-child {
+        border-top-right-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+    }
+
+    .transaction-type-toggle-edit .btn:not(.active) {
+        background-color: #f5f5f5 !important;
+        color: #666 !important;
+    }
+
+    .transaction-type-toggle-edit .btn.active {
+        opacity: 1;
+        transform: scale(1.02);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .transaction-type-toggle-edit .btn-success.active {
+        color: white !important;
+    }
+
+    .transaction-type-toggle-edit .btn-danger.active {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+        color: white !important;
+    }
+
+    .transaction-type-toggle-edit .btn i {
+        margin-right: 5px;
+        font-size: 16px;
+    }
+
+    .transaction-type-toggle-edit .btn:hover:not(.active) {
+        opacity: 0.8;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Transaction type toggle functionality for edit modal
+    $('input[name="edit_type_toggle"]').on('change', function() {
+        const selectedType = $(this).val();
+        const categorySelect = $('#edit_category_id');
+        const $parentLabel = $(this).parent();
+
+        // Update active state visually
+        $('.transaction-type-toggle-edit .btn').removeClass('active');
+        $parentLabel.addClass('active');
+
+        // Reset select value
+        const currentValue = categorySelect.val();
+        categorySelect.val('');
+
+        // Hide all categories first
+        categorySelect.find('option[data-type]').hide();
+        categorySelect.find('optgroup').hide();
+
+        // Show categories for selected type
+        if (selectedType === 'in') {
+            categorySelect.find('option[data-type="in"]').show();
+            categorySelect.find('.in-category-edit').show();
+        } else {
+            categorySelect.find('option[data-type="out"]').show();
+            categorySelect.find('.out-category-edit').show();
+        }
+
+        // Try to keep the same category if it matches the type
+        const selectedOption = categorySelect.find(`option[value="${currentValue}"]`);
+        if (selectedOption.length && selectedOption.data('type') === selectedType) {
+            categorySelect.val(currentValue);
+        }
+
+        // Update icon
+        updateCategoryIcon();
+    });
+
+    // Handle label click to trigger change
+    $('.transaction-type-toggle-edit .btn').on('click', function() {
+        $(this).find('input[type="radio"]').prop('checked', true).trigger('change');
+    });
+
+    // Update category icon
+    function updateCategoryIcon() {
+        const categoryIcon = $('#edit_category_id option:selected').data('icon');
+        $('#selectedIcon').attr('class', categoryIcon || 'fa');
+    }
+
+    // Update icon when category changes
+    $('#edit_category_id').on('change', function() {
+        updateCategoryIcon();
+    });
+
     // Handle Edit button click
     $('.btn-edit').on('click', function() {
         const id = $(this).data('id');
@@ -248,6 +387,25 @@ $(document).ready(function() {
         const note = $(this).data('note');
 
         $('#editForm').attr('action', '/transactions/' + id);
+
+        // Get category type to set toggle
+        const selectedCategoryOption = $(`#edit_category_id option[value="${categoryId}"]`);
+        const categoryType = selectedCategoryOption.data('type');
+
+        // Set transaction type toggle
+        if (categoryType === 'in') {
+            $('#btn-edit-income input').prop('checked', true);
+            $('#btn-edit-income').addClass('active');
+            $('#btn-edit-expense').removeClass('active');
+            $('input[name="edit_type_toggle"][value="in"]').trigger('change');
+        } else {
+            $('#btn-edit-expense input').prop('checked', true);
+            $('#btn-edit-expense').addClass('active');
+            $('#btn-edit-income').removeClass('active');
+            $('input[name="edit_type_toggle"][value="out"]').trigger('change');
+        }
+
+        // Set form values
         $('#edit_category_id').val(categoryId);
         $('#edit_amount').val(amount);
         $('#edit_wallet_id').val(walletId);
@@ -255,19 +413,16 @@ $(document).ready(function() {
         $('#edit_date').val(date);
         $('#edit_note').val(note);
 
-        // tampilkan ikon kategori
-        const categoryIcon = $('#edit_category_id option:selected').data('icon');
-        $('#selectedIcon').attr('class', categoryIcon);
-
-        // tampilkan ikon member
+        // Update icons
+        updateCategoryIcon();
         const memberIcon = $('#edit_member_id option:selected').data('icon');
-        $('#selectedMemberIcon').attr('class', memberIcon);
+        $('#selectedMemberIcon').attr('class', memberIcon || 'fa');
     });
 
     // update ikon saat dropdown member berubah
     $('#edit_member_id').on('change', function() {
         const icon = $(this).find(':selected').data('icon');
-        $('#selectedMemberIcon').attr('class', icon);
+        $('#selectedMemberIcon').attr('class', icon || 'fa');
     });
 
     // Handle Delete button click

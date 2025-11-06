@@ -151,14 +151,14 @@
 
                     <div class="form-group">
                         <label for="category_id">Kategori</label>
-                        <div class="input-group">
-                            <select class="form-control" id="category_id" name="category_id" required>
+                        <div class="input-group align-items-center">
+                            <select class="form-control mr-3" id="category_id" name="category_id" required>
                                 <option value="">Pilih Kategori</option>
                                 @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'in')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
                                     <optgroup label="{{ $groupName }}" class="category-group in-category">
                                         @foreach($groupCategories as $category)
-                                            <option value="{{ $category->id }}" data-type="in" {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                                            @include('components.icon-render', ['icon' => $category->icon]) {{ $category->name }}
+                                            <option value="{{ $category->id }}" data-type="in" data-icon="{{ $category->icon }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                                {{ $category->name }}
                                             </option>
                                         @endforeach
                                     </optgroup>
@@ -166,13 +166,14 @@
                                 @foreach($categories->filter(fn($c) => $c->transactionGroup->type === 'out')->groupBy('transactionGroup.name') as $groupName => $groupCategories)
                                     <optgroup label="{{ $groupName }}" class="category-group out-category" style="display: none;">
                                         @foreach($groupCategories as $category)
-                                            <option value="{{ $category->id }}" data-type="out" {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                                                {{ $category->icon }} {{ $category->name }}
+                                            <option value="{{ $category->id }}" data-type="out" data-icon="{{ $category->icon }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                                {{ $category->name }}
                                             </option>
                                         @endforeach
                                     </optgroup>
                                 @endforeach
                             </select>
+                            <i id="dashboardCategoryIcon" class="fa"></i>
                         </div>
                     </div>
                     <div class="form-group">
@@ -256,7 +257,7 @@
                                 </td>
                                 <td>
                                     <span class="badge badge-{{ $transaction->category->transactionGroup->type === 'in' ? 'success' : 'danger' }}">
-                                        {{ $transaction->category->icon }} {{ $transaction->category->name }}
+                                        <i class="mr-1 {{ $transaction->category->icon }}"></i> {{ $transaction->category->name }}
                                     </span>
                                 </td>
                                 <td>{{ Str::limit($transaction->note ?? '-', 30) }}</td>
@@ -454,6 +455,17 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Update dashboard category icon
+    function updateDashboardCategoryIcon() {
+        const categoryIcon = $('#category_id option:selected').data('icon');
+        $('#dashboardCategoryIcon').attr('class', categoryIcon || 'fa');
+    }
+
+    // Update icon when category changes
+    $('#category_id').on('change', function() {
+        updateDashboardCategoryIcon();
+    });
+
     // Transaction type toggle functionality
     $('input[name="type_toggle"]').on('change', function() {
         const selectedType = $(this).val();
@@ -482,6 +494,9 @@ $(document).ready(function() {
             categorySelect.find('option[data-type="out"]').show();
             categorySelect.find('.out-category').show();
         }
+
+        // Update icon after toggle
+        updateDashboardCategoryIcon();
     });
 
     // Handle label click to trigger change
