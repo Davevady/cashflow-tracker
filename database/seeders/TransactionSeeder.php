@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\{TransactionGroup, Category, Wallet, Member, Transaction};
+use App\Models\{TransactionGroup, Category, Wallet, Member, Transaction, User, UserWallet};
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -52,63 +52,86 @@ class TransactionSeeder extends Seeder
         $self = Member::where('name', 'Diri Sendiri')->first();
         $ortu = Member::where('name', 'Orang Tua')->first();
 
-        if ($walletBRI && $walletBCA && $walletShopee && $walletCash && $self && $ortu) {
+        // Get first user (admin)
+        $user = User::orderBy('id')->first();
+
+        if ($walletBRI && $walletBCA && $walletShopee && $walletCash && $self && $ortu && $user) {
             DB::transaction(function () use (
                 $walletBRI, $walletBCA, $walletShopee, $walletCash,
-                $self, $ortu, $gaji, $makan, $belanja, $komunikasi, $nongkrong
+                $self, $ortu, $gaji, $makan, $belanja, $komunikasi, $nongkrong, $user
             ) {
-                // Incomes
-                Transaction::create([
+                // Income transactions
+                $this->createTransactionWithBalance($user->id, [
                     'category_id' => $gaji->id,
                     'wallet_id' => $walletBRI->id,
                     'member_id' => $self->id,
                     'amount' => 8000000,
                     'date' => now()->startOfMonth()->addDays(1),
                     'note' => 'Gaji bulanan',
-                ]);
-                Transaction::create([
+                ], 'in');
+
+                $this->createTransactionWithBalance($user->id, [
                     'category_id' => $gaji->id,
                     'wallet_id' => $walletBCA->id,
                     'member_id' => $self->id,
                     'amount' => 2000000,
                     'date' => now()->startOfMonth()->addDays(2),
                     'note' => 'Bonus proyek',
-                ]);
+                ], 'in');
 
-                // Expenses
-                Transaction::create([
+                // Expense transactions
+                $this->createTransactionWithBalance($user->id, [
                     'category_id' => $makan->id,
                     'wallet_id' => $walletShopee->id,
                     'member_id' => $self->id,
                     'amount' => 150000,
                     'date' => now()->startOfMonth()->addDays(3),
                     'note' => 'Makan siang',
-                ]);
-                Transaction::create([
+                ], 'out');
+
+                $this->createTransactionWithBalance($user->id, [
                     'category_id' => $belanja->id,
                     'wallet_id' => $walletBRI->id,
                     'member_id' => $ortu->id,
                     'amount' => 350000,
                     'date' => now()->startOfMonth()->addDays(4),
                     'note' => 'Belanja perabotan untuk orang tua',
-                ]);
-                Transaction::create([
+                ], 'out');
+
+                $this->createTransactionWithBalance($user->id, [
                     'category_id' => $komunikasi->id,
                     'wallet_id' => $walletBCA->id,
                     'member_id' => $self->id,
                     'amount' => 100000,
                     'date' => now()->startOfMonth()->addDays(5),
                     'note' => 'Pulsa/Kuota',
-                ]);
-                Transaction::create([
+                ], 'out');
+
+                $this->createTransactionWithBalance($user->id, [
                     'category_id' => $nongkrong->id,
                     'wallet_id' => $walletCash->id,
                     'member_id' => $self->id,
                     'amount' => 80000,
                     'date' => now()->startOfMonth()->addDays(6),
                     'note' => 'Ngopi',
-                ]);
+                ], 'out');
             });
         }
+    }
+
+    /**
+     * Create transaction and update user wallet balance
+     */
+    private function createTransactionWithBalance(int $userId, array $data, string $type): void
+    {
+        // Add user_id to transaction data
+        $data['user_id'] = $userId;
+
+        // Create transaction
+        $transaction = Transaction::create($data);
+
+        // Update user wallet balance
+        $userWallet = UserWallet::getOrCreate($userId, $data['wallet_id']);
+        $userWallet->updateBalance($data['amount'], $type);
     }
 }
