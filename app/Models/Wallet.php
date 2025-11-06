@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -56,6 +57,28 @@ class Wallet extends Model
     public function incomingTransfers(): HasMany
     {
         return $this->hasMany(WalletTransfer::class, 'to_wallet_id');
+    }
+
+    /**
+     * Users who have this wallet (with balance).
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_wallets')
+            ->withPivot('balance')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get user's balance for this wallet.
+     */
+    public function getBalanceForUser(int $userId): int
+    {
+        $userWallet = UserWallet::where('user_id', $userId)
+            ->where('wallet_id', $this->id)
+            ->first();
+
+        return $userWallet ? $userWallet->balance : 0;
     }
 }
 

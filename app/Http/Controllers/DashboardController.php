@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\{Category, Member, Transaction, User, Wallet};
+use App\Models\{Category, Member, Transaction, User, Wallet, UserWallet};
 
 class DashboardController extends Controller
 {

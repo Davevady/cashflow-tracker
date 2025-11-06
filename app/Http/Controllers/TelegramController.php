@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\TelegramSession;
+use App\Models\UserWallet;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -354,12 +355,9 @@ class TelegramController extends Controller
                 'user_id' => $session->user_id,
             ]);
 
-            // Update wallet balance
-            if ($type === 'income') {
-                $wallet->increment('balance', $amount);
-            } else {
-                $wallet->decrement('balance', $amount);
-            }
+            // Update user wallet balance
+            $userWallet = UserWallet::getOrCreate($session->user_id, $wallet->id);
+            $userWallet->updateBalance($amount, $type);
 
             DB::commit();
 
@@ -404,34 +402,25 @@ class TelegramController extends Controller
     {
         $userId = $session->user_id;
 
-        // Get wallets for this user by checking transactions
-        $wallets = Wallet::where('is_active', true)
-            ->whereHas('transactions', function ($q) use ($userId) {
-                $q->where('user_id', $userId);
+        // Get user wallets directly from user_wallets table
+        $userWallets = UserWallet::where('user_id', $userId)
+            ->with('wallet')
+            ->whereHas('wallet', function ($q) {
+                $q->where('is_active', true);
             })
             ->get();
 
         $text = "💰 <b>Saldo Dompet</b>\n\n";
 
         $totalBalance = 0;
-        foreach ($wallets as $wallet) {
-            // Calculate balance from user's transactions only
-            $walletBalance = Transaction::where('wallet_id', $wallet->id)
-                ->where('user_id', $userId)
-                ->join('categories', 'transactions.category_id', '=', 'categories.id')
-                ->join('transaction_groups', 'categories.group_id', '=', 'transaction_groups.id')
-                ->selectRaw("
-                    SUM(CASE WHEN transaction_groups.type = 'in' THEN transactions.amount ELSE -transactions.amount END) as balance
-                ")
-                ->value('balance') ?? 0;
-
-            $text .= "• <b>{$wallet->name}</b>\n";
-            $text .= "  " . $this->telegram->formatMoney($walletBalance) . "\n\n";
-            $totalBalance += $walletBalance;
+        foreach ($userWallets as $userWallet) {
+            $text .= "• <b>{$userWallet->wallet->name}</b>\n";
+            $text .= "  " . $this->telegram->formatMoney($userWallet->balance) . "\n\n";
+            $totalBalance += $userWallet->balance;
         }
 
-        if ($wallets->isEmpty()) {
-            $text .= "<i>Belum ada transaksi</i>\n\n";
+        if ($userWallets->isEmpty()) {
+            $text .= "<i>Belum ada dompet</i>\n\n";
         }
 
         $text .= "━━━━━━━━━━━━━━━━━━\n";

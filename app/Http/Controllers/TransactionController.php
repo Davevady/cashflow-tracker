@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Transaction, Category, Wallet, Member};
+use App\Models\{Transaction, Category, Wallet, Member, UserWallet};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -50,16 +50,12 @@ class TransactionController extends Controller
         DB::transaction(function () use ($validated) {
             $transaction = Transaction::create($validated);
 
-            // adjust wallet balance according to transaction type
+            // adjust user wallet balance according to transaction type
             $category = $transaction->category()->with('transactionGroup')->first();
             $type = $category->transactionGroup->type; // 'in' or 'out'
-            $wallet = Wallet::lockForUpdate()->find($transaction->wallet_id);
-            if ($type === 'in') {
-                $wallet->balance = $wallet->balance + $transaction->amount;
-            } else {
-                $wallet->balance = $wallet->balance - $transaction->amount;
-            }
-            $wallet->save();
+
+            $userWallet = UserWallet::getOrCreate($validated['user_id'], $transaction->wallet_id);
+            $userWallet->updateBalance($transaction->amount, $type);
         });
 
         return redirect()->route('dashboard')
@@ -86,32 +82,36 @@ class TransactionController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $transaction) {
-            // reverse old balance
+            // reverse old balance in user_wallets
             $oldCategory = $transaction->category()->with('transactionGroup')->first();
             $oldType = $oldCategory->transactionGroup->type;
-            $oldWallet = Wallet::lockForUpdate()->find($transaction->wallet_id);
-            if ($oldWallet) {
+            $oldUserWallet = UserWallet::where('user_id', $transaction->user_id)
+                ->where('wallet_id', $transaction->wallet_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($oldUserWallet) {
+                // Reverse the old transaction
                 if ($oldType === 'in') {
-                    $oldWallet->balance = $oldWallet->balance - $transaction->amount;
+                    $oldUserWallet->decrement('balance', $transaction->amount);
                 } else {
-                    $oldWallet->balance = $oldWallet->balance + $transaction->amount;
+                    $oldUserWallet->increment('balance', $transaction->amount);
                 }
-                $oldWallet->save();
             }
 
             // update transaction
             $transaction->update($validated);
 
-            // apply new balance
+            // apply new balance in user_wallets
             $newCategory = $transaction->category()->with('transactionGroup')->first();
             $newType = $newCategory->transactionGroup->type;
-            $newWallet = Wallet::lockForUpdate()->find($transaction->wallet_id);
+            $newUserWallet = UserWallet::getOrCreate($transaction->user_id, $transaction->wallet_id);
+
             if ($newType === 'in') {
-                $newWallet->balance = $newWallet->balance + $transaction->amount;
+                $newUserWallet->increment('balance', $transaction->amount);
             } else {
-                $newWallet->balance = $newWallet->balance - $transaction->amount;
+                $newUserWallet->decrement('balance', $transaction->amount);
             }
-            $newWallet->save();
         });
 
         return redirect()->route('transactions.index')
@@ -129,17 +129,20 @@ class TransactionController extends Controller
         }
 
         DB::transaction(function () use ($transaction) {
-            // reverse wallet balance impact
+            // reverse user wallet balance impact
             $category = $transaction->category()->with('transactionGroup')->first();
             $type = $category->transactionGroup->type;
-            $wallet = Wallet::lockForUpdate()->find($transaction->wallet_id);
-            if ($wallet) {
+            $userWallet = UserWallet::where('user_id', $transaction->user_id)
+                ->where('wallet_id', $transaction->wallet_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($userWallet) {
                 if ($type === 'in') {
-                    $wallet->balance = $wallet->balance - $transaction->amount;
+                    $userWallet->decrement('balance', $transaction->amount);
                 } else {
-                    $wallet->balance = $wallet->balance + $transaction->amount;
+                    $userWallet->increment('balance', $transaction->amount);
                 }
-                $wallet->save();
             }
 
             $transaction->delete();
