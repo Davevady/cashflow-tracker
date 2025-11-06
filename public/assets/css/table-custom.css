@@ -1,0 +1,401 @@
+/**
+ * CashFlow Tracker - Custom Table Styles
+ * Responsive table with horizontal scroll and text truncation
+ */
+
+/* ========================================
+   Table Container with Horizontal Scroll
+   ======================================== */
+.table-responsive-custom {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1rem;
+}
+
+/* Scrollbar styling */
+.table-responsive-custom::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive-custom::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.table-responsive-custom::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.table-responsive-custom::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ========================================
+   Table Base Styles
+   ======================================== */
+.table-custom {
+    width: 100%;
+    margin-bottom: 0;
+    white-space: nowrap; /* Prevent text wrapping by default */
+}
+
+.table-custom thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+.table-custom tbody td {
+    padding: 10px 8px;
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* ========================================
+   Text Truncation System
+   ======================================== */
+.truncate-text {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+    cursor: pointer;
+    position: relative;
+}
+
+/* Different max widths for different content types */
+.truncate-text.truncate-sm {
+    max-width: 100px;
+}
+
+.truncate-text.truncate-md {
+    max-width: 150px;
+}
+
+.truncate-text.truncate-lg {
+    max-width: 250px;
+}
+
+.truncate-text.truncate-xl {
+    max-width: 300px;
+}
+
+/* Hover effect for truncated text */
+.truncate-text:hover {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+/* Icon indicator for truncated text */
+.truncate-text::after {
+    content: '\f002'; /* FontAwesome search icon */
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    font-size: 10px;
+    margin-left: 5px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.truncate-text.is-truncated::after {
+    opacity: 0.5;
+}
+
+.truncate-text.is-truncated:hover::after {
+    opacity: 1;
+}
+
+/* ========================================
+   Column Width Control
+   ======================================== */
+/* Action column (buttons) */
+.table-custom .col-action {
+    width: 120px;
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+/* ID/Number column */
+.table-custom .col-id {
+    width: 60px;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Date/DateTime column */
+.table-custom .col-date {
+    width: 150px;
+    min-width: 150px;
+}
+
+/* Status/Badge column */
+.table-custom .col-status {
+    width: 100px;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* Amount/Money column */
+.table-custom .col-amount {
+    width: 130px;
+    min-width: 130px;
+    text-align: right;
+    font-weight: 600;
+}
+
+/* Name/Title column */
+.table-custom .col-name {
+    width: 180px;
+    min-width: 150px;
+}
+
+/* Category/Type column */
+.table-custom .col-category {
+    width: 150px;
+    min-width: 120px;
+}
+
+/* Description/Note column */
+.table-custom .col-description {
+    width: 200px;
+    min-width: 200px;
+}
+
+/* Icon column */
+.table-custom .col-icon {
+    width: 50px;
+    min-width: 50px;
+    text-align: center;
+}
+
+/* ========================================
+   Text Detail Modal
+   ======================================== */
+.text-detail-modal .modal-body {
+    max-height: 400px;
+    overflow-y: auto;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.text-detail-modal .detail-label {
+    font-weight: 600;
+    color: #6c757d;
+    font-size: 12px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.text-detail-modal .detail-value {
+    font-size: 14px;
+    color: #212529;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+/* ========================================
+   Bootstrap Tooltip Override
+   ======================================== */
+.tooltip-inner {
+    max-width: 300px;
+    text-align: left;
+    padding: 8px 12px;
+}
+
+/* ========================================
+   Mobile Responsiveness
+   ======================================== */
+@media (max-width: 768px) {
+    .table-responsive-custom {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+
+    .table-custom {
+        font-size: 13px;
+    }
+
+    .table-custom thead th {
+        padding: 10px 6px;
+        font-size: 12px;
+    }
+
+    .table-custom tbody td {
+        padding: 8px 6px;
+    }
+
+    /* Reduce truncate width on mobile */
+    .truncate-text {
+        max-width: 120px;
+    }
+
+    .truncate-text.truncate-sm {
+        max-width: 80px;
+    }
+
+    .truncate-text.truncate-md {
+        max-width: 100px;
+    }
+
+    .truncate-text.truncate-lg {
+        max-width: 150px;
+    }
+
+    .truncate-text.truncate-xl {
+        max-width: 180px;
+    }
+
+    /* Adjust column widths for mobile */
+    .table-custom .col-action {
+        width: 100px;
+        min-width: 100px;
+    }
+
+    .table-custom .col-date {
+        width: 120px;
+        min-width: 120px;
+    }
+
+    .table-custom .col-amount {
+        width: 110px;
+        min-width: 110px;
+    }
+
+    .table-custom .col-name,
+    .table-custom .col-category {
+        width: 120px;
+        min-width: 100px;
+    }
+
+    .table-custom .col-description {
+        width: 150px;
+        min-width: 150px;
+    }
+}
+
+/* ========================================
+   Table Row Hover Effect
+   ======================================== */
+.table-custom tbody tr {
+    transition: background-color 0.2s;
+}
+
+.table-custom tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* ========================================
+   Loading State
+   ======================================== */
+.table-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.table-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ========================================
+   Empty State
+   ======================================== */
+.table-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.table-empty-state i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.table-empty-state h5 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.table-empty-state p {
+    font-size: 14px;
+    margin-bottom: 0;
+}
+
+/* ========================================
+   Scroll Indicator (Shadow)
+   ======================================== */
+.table-responsive-custom {
+    position: relative;
+}
+
+.table-responsive-custom.has-scroll-left::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+    z-index: 11;
+    pointer-events: none;
+}
+
+.table-responsive-custom.has-scroll-right::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+    z-index: 11;
+    pointer-events: none;
+}
+
+/* ========================================
+   Print Styles
+   ======================================== */
+@media print {
+    .table-responsive-custom {
+        overflow: visible !important;
+    }
+
+    .truncate-text {
+        max-width: none !important;
+        white-space: normal !important;
+        text-overflow: clip !important;
+    }
+
+    .col-action {
+        display: none !important;
+    }
+}

@@ -30,6 +30,7 @@
     <!-- CSS Files -->
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/css/atlantis.min.css') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/css/table-custom.css') }}" />
 
     @stack('styles')
 </head>
@@ -250,6 +251,9 @@
 
     <!-- Custom JS - Format Rupiah -->
     <script src="{{ asset('assets/js/custom.js') }}"></script>
+
+    <!-- Custom JS - Table Handler -->
+    <script src="{{ asset('assets/js/table-custom.js') }}"></script>
 
     @stack('scripts')
 </body>
