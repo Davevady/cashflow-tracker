@@ -189,14 +189,17 @@
                     </div>
                     <div class="form-group">
                         <label for="member_id">Anggota</label>
-                        <select class="form-control" id="member_id" name="member_id">
-                            <option value="">Pilih Anggota (opsional)</option>
-                            @foreach($members as $m)
-                                <option value="{{ $m->id }}" {{ old('member_id') == $m->id ? 'selected' : '' }}>
-                                    {{ $m->icon }} {{ $m->name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <div class="input-group align-items-center">
+                            <select class="form-control mr-3" id="member_id" name="member_id">
+                                <option value="">Pilih Anggota (opsional)</option>
+                                @foreach($members as $m)
+                                    <option value="{{ $m->id }}" data-icon="{{ $m->icon }}">
+                                        {{ $m->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <i id="dashboardMemberIcon" class="fa"></i>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="amount">Jumlah</label>
@@ -461,9 +464,20 @@ $(document).ready(function() {
         $('#dashboardCategoryIcon').attr('class', categoryIcon || 'fa');
     }
 
+    // Update dashboard member icon
+    function updateDashboardMemberIcon() {
+        const memberIcon = $('#member_id option:selected').data('icon');
+        $('#dashboardMemberIcon').attr('class', memberIcon || 'fa');
+    }
+
     // Update icon when category changes
     $('#category_id').on('change', function() {
         updateDashboardCategoryIcon();
+    });
+
+    // Update icon when member changes
+    $('#member_id').on('change', function() {
+        updateDashboardMemberIcon();
     });
 
     // Transaction type toggle functionality
@@ -495,8 +509,9 @@ $(document).ready(function() {
             categorySelect.find('.out-category').show();
         }
 
-        // Update icon after toggle
+        // Update icons after toggle
         updateDashboardCategoryIcon();
+        updateDashboardMemberIcon();
     });
 
     // Handle label click to trigger change
