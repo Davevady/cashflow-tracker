@@ -3,35 +3,30 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Blade;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\URL; // ← tambahkan ini
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
+        // Force asset & route pakai HTTPS saat diakses dari Cloudflare
+        URL::forceScheme('https');
+
         // Set Carbon locale to Indonesian
         Carbon::setLocale('id');
         setlocale(LC_TIME, 'id_ID.UTF-8', 'id_ID', 'Indonesian');
 
-        // Register custom Blade directive for Indonesian date format
+        // Blade directives
         Blade::directive('indonesianDate', function ($expression) {
             return "<?php echo ($expression)->locale('id')->translatedFormat('l, d F Y - H:i'); ?>";
         });
 
         Blade::directive('shortIndonesianDate', function ($expression) {
-            return "<?php echo ($expression)->locale('id')->translatedFormat('d M Y, H:i'); ?>";
+            return "<?php echo ($expression)->locale('id')->translatedFormat('d M Y - H:i'); ?>";
         });
     }
 }

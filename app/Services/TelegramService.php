@@ -84,6 +84,9 @@ class TelegramService
                     ['text' => '=� Lihat Saldo', 'callback_data' => 'view_balance'],
                     ['text' => '=� Laporan Hari Ini', 'callback_data' => 'daily_report'],
                 ],
+                [
+                    ['text' => '🚪 Logout', 'callback_data' => 'logout'],
+                ],
             ],
         ];
     }

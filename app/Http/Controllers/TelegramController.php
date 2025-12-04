@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\TelegramSession;
@@ -114,6 +115,7 @@ class TelegramController extends Controller
         // Handle authenticated user operations
         match ($session->state) {
             'waiting_amount' => $this->handleAmountInput($chatId, $text, $session),
+            'waiting_date' => $this->handleDateInput($chatId, $text, $session),
             'waiting_note' => $this->handleNoteInput($chatId, $text, $session),
             default => $this->showMainMenu($chatId, $session),
         };
@@ -169,7 +171,20 @@ class TelegramController extends Controller
             $this->showWalletSelection($chatId, $messageId, $categoryId, $session);
         } elseif (str_starts_with($data, 'wallet_')) {
             $walletId = str_replace('wallet_', '', $data);
-            $this->askForAmount($chatId, $messageId, $walletId, $session);
+            $this->showMemberSelection($chatId, $messageId, $walletId, $session);
+        } elseif (str_starts_with($data, 'member_')) {
+            $memberId = str_replace('member_', '', $data);
+            $this->askForAmount($chatId, $messageId, $memberId, $session);
+        } elseif (str_starts_with($data, 'date_')) {
+            $dateOption = str_replace('date_', '', $data);
+            $this->handleDateSelection($chatId, $messageId, $dateOption, $session);
+        } elseif ($data === 'logout') {
+            $session->logout();
+            $this->telegram->editMessageText(
+                $chatId,
+                $messageId,
+                "✅ Anda berhasil logout.\n\nGunakan /start untuk login kembali."
+            );
         } elseif ($data === 'back_to_main') {
             $this->showMainMenu($chatId, $session, $messageId);
         } elseif ($data === 'back_to_type') {
@@ -177,6 +192,16 @@ class TelegramController extends Controller
         } elseif ($data === 'back_to_category') {
             $type = $session->data['type'] ?? 'in';
             $this->showCategorySelection($chatId, $messageId, $type, $session);
+        } elseif ($data === 'back_to_wallet') {
+            $categoryId = $session->data['category_id'] ?? null;
+            if ($categoryId) {
+                $this->showWalletSelection($chatId, $messageId, $categoryId, $session);
+            }
+        } elseif ($data === 'back_to_member') {
+            $walletId = $session->data['wallet_id'] ?? null;
+            if ($walletId) {
+                $this->showMemberSelection($chatId, $messageId, $walletId, $session);
+            }
         } elseif ($data === 'cancel') {
             $session->reset();
             $this->telegram->editMessageText(
@@ -262,9 +287,9 @@ class TelegramController extends Controller
     }
 
     /**
-     * Ask for transaction amount
+     * Show member selection
      */
-    protected function askForAmount(int $chatId, int $messageId, int $walletId, TelegramSession $session): void
+    protected function showMemberSelection(int $chatId, int $messageId, int $walletId, TelegramSession $session): void
     {
         $wallet = Wallet::find($walletId);
 
@@ -274,7 +299,7 @@ class TelegramController extends Controller
             return;
         }
 
-        $session->updateState('waiting_amount', ['wallet_id' => $walletId]);
+        $session->updateState('selecting_member', ['wallet_id' => $walletId]);
 
         $category = Category::find($session->data['category_id']);
         $typeLabel = $session->data['type'] === 'income' ? '📥 Pemasukan' : '📤 Pengeluaran';
@@ -282,10 +307,65 @@ class TelegramController extends Controller
         $text = "<b>$typeLabel</b>\n" .
             "Kategori: {$category->name}\n" .
             "Dompet: {$wallet->name}\n\n" .
+            "👤 <b>Pilih Member:</b>\n" .
+            "<i>Untuk siapa transaksi ini?</i>";
+
+        $members = Member::orderBy('name')->get();
+        $buttons = [];
+
+        foreach ($members as $member) {
+            $buttons[] = [
+                ['text' => $member->name, 'callback_data' => 'member_' . $member->id]
+            ];
+        }
+
+        // Add back button
+        $buttons[] = [
+            ['text' => '🔙 Kembali', 'callback_data' => 'back_to_wallet'],
+            ['text' => '❌ Batal', 'callback_data' => 'cancel']
+        ];
+
+        $keyboard = ['inline_keyboard' => $buttons];
+
+        $this->telegram->editMessageText($chatId, $messageId, $text, $keyboard);
+    }
+
+    /**
+     * Ask for transaction amount
+     */
+    protected function askForAmount(int $chatId, int $messageId, int $memberId, TelegramSession $session): void
+    {
+        $member = Member::find($memberId);
+
+        if (!$member) {
+            $this->telegram->sendMessage($chatId, "❌ Member tidak ditemukan.");
+            $this->showMainMenu($chatId, $session);
+            return;
+        }
+
+        $session->updateState('waiting_amount', ['member_id' => $memberId]);
+
+        $category = Category::find($session->data['category_id']);
+        $wallet = Wallet::find($session->data['wallet_id']);
+        $typeLabel = $session->data['type'] === 'income' ? '📥 Pemasukan' : '📤 Pengeluaran';
+
+        $text = "<b>$typeLabel</b>\n" .
+            "Kategori: {$category->name}\n" .
+            "Dompet: {$wallet->name}\n" .
+            "Member: {$member->name}\n\n" .
             "💵 <b>Masukkan nominal transaksi:</b>\n" .
             "<i>Contoh: 50000 atau 50.000</i>";
 
-        $this->telegram->editMessageText($chatId, $messageId, $text, $this->telegram->getCancelKeyboard());
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '🔙 Kembali', 'callback_data' => 'back_to_member'],
+                    ['text' => '❌ Batal', 'callback_data' => 'cancel']
+                ]
+            ]
+        ];
+
+        $this->telegram->editMessageText($chatId, $messageId, $text, $keyboard);
     }
 
     /**
@@ -305,20 +385,157 @@ class TelegramController extends Controller
             return;
         }
 
-        $session->updateState('waiting_note', ['amount' => $amount]);
+        $session->updateState('selecting_date', ['amount' => $amount]);
 
         $category = Category::find($session->data['category_id']);
         $wallet = Wallet::find($session->data['wallet_id']);
+        $member = Member::find($session->data['member_id']);
         $typeLabel = $session->data['type'] === 'income' ? '📥 Pemasukan' : '📤 Pengeluaran';
 
         $text = "<b>$typeLabel</b>\n" .
             "Kategori: {$category->name}\n" .
             "Dompet: {$wallet->name}\n" .
+            "Member: {$member->name}\n" .
             "Nominal: " . $this->telegram->formatMoney($amount) . "\n\n" .
+            "📅 <b>Pilih tanggal transaksi:</b>";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📅 Hari Ini (' . now()->format('d/m/Y') . ')', 'callback_data' => 'date_today'],
+                ],
+                [
+                    ['text' => '📝 Input Manual', 'callback_data' => 'date_manual'],
+                ],
+                [
+                    ['text' => '🔙 Kembali', 'callback_data' => 'back_to_member'],
+                    ['text' => '❌ Batal', 'callback_data' => 'cancel']
+                ]
+            ]
+        ];
+
+        $this->telegram->sendMessage($chatId, $text, $keyboard);
+    }
+
+    /**
+     * Handle date selection (today or manual)
+     */
+    protected function handleDateSelection(int $chatId, int $messageId, string $dateOption, TelegramSession $session): void
+    {
+        if ($dateOption === 'today') {
+            // Set date to today and ask for note
+            $session->updateState('waiting_note', ['date' => now()->format('Y-m-d H:i:s')]);
+
+            $category = Category::find($session->data['category_id']);
+            $wallet = Wallet::find($session->data['wallet_id']);
+            $member = Member::find($session->data['member_id']);
+            $amount = $session->data['amount'];
+            $typeLabel = $session->data['type'] === 'income' ? '📥 Pemasukan' : '📤 Pengeluaran';
+
+            $text = "<b>$typeLabel</b>\n" .
+                "Kategori: {$category->name}\n" .
+                "Dompet: {$wallet->name}\n" .
+                "Member: {$member->name}\n" .
+                "Nominal: " . $this->telegram->formatMoney($amount) . "\n" .
+                "Tanggal: " . now()->format('d/m/Y H:i') . "\n\n" .
+                "📝 <b>Masukkan keterangan transaksi:</b>\n" .
+                "<i>Contoh: Beli makan siang</i>";
+
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '❌ Batal', 'callback_data' => 'cancel']
+                    ]
+                ]
+            ];
+
+            $this->telegram->editMessageText($chatId, $messageId, $text, $keyboard);
+        } else {
+            // Ask for manual date input
+            $session->updateState('waiting_date');
+
+            $category = Category::find($session->data['category_id']);
+            $wallet = Wallet::find($session->data['wallet_id']);
+            $member = Member::find($session->data['member_id']);
+            $amount = $session->data['amount'];
+            $typeLabel = $session->data['type'] === 'income' ? '📥 Pemasukan' : '📤 Pengeluaran';
+
+            $text = "<b>$typeLabel</b>\n" .
+                "Kategori: {$category->name}\n" .
+                "Dompet: {$wallet->name}\n" .
+                "Member: {$member->name}\n" .
+                "Nominal: " . $this->telegram->formatMoney($amount) . "\n\n" .
+                "📅 <b>Masukkan tanggal dan waktu transaksi:</b>\n" .
+                "<i>Format: DD/MM/YYYY HH:MM</i>\n" .
+                "<i>Contoh: 15/11/2025 14:30</i>";
+
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '❌ Batal', 'callback_data' => 'cancel']
+                    ]
+                ]
+            ];
+
+            $this->telegram->editMessageText($chatId, $messageId, $text, $keyboard);
+        }
+    }
+
+    /**
+     * Handle manual date input
+     */
+    protected function handleDateInput(int $chatId, string $text, TelegramSession $session): void
+    {
+        // Parse date format DD/MM/YYYY HH:MM
+        $datePattern = '/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/';
+
+        if (!preg_match($datePattern, $text, $matches)) {
+            $this->telegram->sendMessage(
+                $chatId,
+                "❌ Format tanggal tidak valid.\n\n" .
+                "Silakan masukkan dengan format: DD/MM/YYYY HH:MM\n" .
+                "<i>Contoh: 15/11/2025 14:30</i>"
+            );
+            return;
+        }
+
+        $day = $matches[1];
+        $month = $matches[2];
+        $year = $matches[3];
+        $hour = $matches[4];
+        $minute = $matches[5];
+
+        // Validate date
+        if (!checkdate($month, $day, $year) || $hour > 23 || $minute > 59) {
+            $this->telegram->sendMessage(
+                $chatId,
+                "❌ Tanggal atau waktu tidak valid.\n\n" .
+                "Silakan masukkan tanggal dan waktu yang benar.\n" .
+                "<i>Format: DD/MM/YYYY HH:MM</i>"
+            );
+            return;
+        }
+
+        $date = "$year-$month-$day $hour:$minute:00";
+
+        $session->updateState('waiting_note', ['date' => $date]);
+
+        $category = Category::find($session->data['category_id']);
+        $wallet = Wallet::find($session->data['wallet_id']);
+        $member = Member::find($session->data['member_id']);
+        $amount = $session->data['amount'];
+        $typeLabel = $session->data['type'] === 'income' ? '📥 Pemasukan' : '📤 Pengeluaran';
+
+        $text = "<b>$typeLabel</b>\n" .
+            "Kategori: {$category->name}\n" .
+            "Dompet: {$wallet->name}\n" .
+            "Member: {$member->name}\n" .
+            "Nominal: " . $this->telegram->formatMoney($amount) . "\n" .
+            "Tanggal: " . \Carbon\Carbon::parse($date)->format('d/m/Y H:i') . "\n\n" .
             "📝 <b>Masukkan keterangan transaksi:</b>\n" .
             "<i>Contoh: Beli makan siang</i>";
 
-        $this->telegram->sendMessage($chatId, $text, $this->telegram->getCancelKeyboard());
+        $this->telegram->sendMessage($chatId, $text);
     }
 
     /**
@@ -342,16 +559,19 @@ class TelegramController extends Controller
 
             $category = Category::find($session->data['category_id']);
             $wallet = Wallet::find($session->data['wallet_id']);
+            $member = Member::find($session->data['member_id']);
             $amount = $session->data['amount'];
             $type = $session->data['type'];
+            $date = $session->data['date'] ?? now();
 
             // Create transaction
             Transaction::create([
                 'category_id' => $category->id,
                 'wallet_id' => $wallet->id,
+                'member_id' => $member->id,
                 'amount' => $amount,
                 'note' => $note,
-                'date' => now(),
+                'date' => $date,
                 'user_id' => $session->user_id,
             ]);
 
@@ -364,14 +584,20 @@ class TelegramController extends Controller
             $typeLabel = $type === 'income' ? '📥 Pemasukan' : '📤 Pengeluaran';
             $typeIcon = $type === 'income' ? '✅' : '💸';
 
+            // Get updated user wallet balance
+            $userWalletBalance = UserWallet::where('user_id', $session->user_id)
+                ->where('wallet_id', $wallet->id)
+                ->first();
+
             $successMessage = "$typeIcon <b>Transaksi Berhasil Disimpan!</b>\n\n" .
                 "Jenis: $typeLabel\n" .
                 "Kategori: {$category->name}\n" .
                 "Dompet: {$wallet->name}\n" .
+                "Member: {$member->name}\n" .
                 "Nominal: " . $this->telegram->formatMoney($amount) . "\n" .
                 "Keterangan: $note\n" .
-                "Tanggal: " . now()->format('d/m/Y H:i') . "\n\n" .
-                "Saldo {$wallet->name}: " . $this->telegram->formatMoney($wallet->balance);
+                "Tanggal: " . \Carbon\Carbon::parse($date)->format('d/m/Y H:i') . "\n\n" .
+                "Saldo {$wallet->name}: " . $this->telegram->formatMoney($userWalletBalance->balance ?? 0);
 
             $this->telegram->sendMessage($chatId, $successMessage);
 
